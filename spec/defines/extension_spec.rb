@@ -6,7 +6,6 @@ describe 'php::extension' do
       let :facts do
         facts
       end
-
       let(:pre_condition) { 'include php' }
 
       unless facts[:osfamily] == 'Suse' || facts[:osfamily] == 'FreeBSD' # FIXME: something is wrong on these

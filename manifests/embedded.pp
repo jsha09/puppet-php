@@ -35,17 +35,21 @@ class php::embedded(
   )
 
   $real_package = $::osfamily ? {
-    'Debian' => "lib${package}",
+    'Debian'  => "lib${package}",
     default   => $package,
   }
 
   package { $real_package:
     ensure  => $ensure,
     require => Class['::php::packages'],
-  }->
-  ::php::config { 'embedded':
-    file   => $inifile,
-    config => $real_settings,
+    before  => Php::Config['embedded'],
+  }
+
+  if $inifile != $php::params::config_root_inifile {
+    ::php::config { 'embedded':
+      file   => $inifile,
+      config => $real_settings,
+    }
   }
 
 }

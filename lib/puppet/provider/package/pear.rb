@@ -24,11 +24,13 @@ Puppet::Type.type(:package).provide :pear, parent: Puppet::Provider::Package do
       list = list.map do |set|
         %r{INSTALLED PACKAGES, CHANNEL (.*):}i.match(set) { |m| channel = m[1].downcase }
 
+        # if hash[:justme] is specified this should only put something into pearhash if
+        # the line matched the string in hash[:justme]
         if hash[:justme] && set =~ %r{^#{hash[:justme]}}
           pearhash = pearsplit(set, channel)
           pearhash[:provider] = :pear
           pearhash
-        elsif (pearhash = pearsplit(set, channel))
+        elsif !hash[:justme] && (pearhash = pearsplit(set, channel))
           pearhash[:provider] = :pear
           pearhash
         end
@@ -102,6 +104,7 @@ Puppet::Type.type(:package).provide :pear, parent: Puppet::Provider::Package do
   end
 
   def query
+    Puppet.debug format("doing the pearlist for '%s'", @resource[:name])
     self.class.pearlist(justme: @resource[:name])
   end
 

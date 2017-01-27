@@ -55,6 +55,15 @@
 # [*pipe*]
 #   String parameter to input answers during extension setup. Supported
 #   *provider*: pecl.
+# [*package_name*]
+#   String parameter, which can be used to override the package name. This can be useful if you have multiple extensions
+#   grouped into one package. Just specify multiple php::extension with the same package name.
+#   Defaults to namevar
+#
+# [*config_file_prefix*]
+#   String parameter, to add a prefix to config files created for this extension. This is there to make the define able
+#   to work with SCL packages which add forced ordering to their configs (like 20-pdo.ini)
+#   Defaults to namevar
 #
 define php::extension (
   $ensure            = 'installed',
@@ -71,6 +80,8 @@ define php::extension (
   $settings_prefix   = false,
   $sapi              = 'ALL',
   $pipe              = undef,
+  $package_name      = undef,
+  $config_file_prefix = undef,
 ) {
 
   if ! defined(Class['php']) {
@@ -84,6 +95,8 @@ define php::extension (
   validate_string($sapi)
   validate_array($header_packages)
   validate_bool($zend)
+  validate_string($package_name)
+  validate_string($config_file_prefix)
 
   if $source and $pecl_source {
     fail('Only one of $source and $pecl_source can be specified.')
@@ -96,13 +109,20 @@ define php::extension (
     $real_source = $pecl_source
   }
 
+  if $package_name {
+    $real_package_name = $package_name
+  }
+  else {
+    $real_package_name = $title
+  }
+
   if $provider != 'none' {
 
     if $provider == 'pecl' {
-      $real_package = "pecl-${title}"
+      $real_package = "pecl-${real_package_name}"
     }
     else {
-      $real_package = "${package_prefix}${title}"
+      $real_package = "${package_prefix}${real_package_name}"
     }
 
     unless empty($header_packages) {
@@ -110,36 +130,39 @@ define php::extension (
       Package[$header_packages] -> Package[$real_package]
     }
 
-    if $provider == 'pecl' {
-      ensure_packages( [ $real_package ], {
-        ensure   => $ensure,
-        provider => $provider,
-        source   => $real_source,
-        pipe     => $pipe,
-        require  => [
-          Class['::php::pear'],
-          Class['::php::dev'],
-        ],
-      })
+    if !($real_package_name in $::php::params::common_package_suffixes) and !defined(Package[$real_package]) {
+      if $provider == 'pecl' {
+        ensure_resource('package', [ $real_package ], {
+          ensure   => $ensure,
+          provider => $provider,
+          source   => $real_source,
+          pipe     => $pipe,
+          require  => [
+            Class['::php::pear'],
+            Class['::php::dev']
+          ],
+        })
 
-      unless empty($compiler_packages) {
-        ensure_resource('package', $compiler_packages)
-        Package[$compiler_packages] -> Package[$real_package]
+        unless empty($compiler_packages) {
+          ensure_resource('package', $compiler_packages)
+          Package[$compiler_packages] -> Package[$real_package]
+        }
       }
-    }
-    else {
-      if $pipe != undef {
-        warning("pipe param is not supported by php::extension provider ${provider}")
-      }
+      else {
+        if $pipe != undef {
+          warning("pipe param is not supported by php::extension provider ${provider}")
+        }
 
-      ensure_packages( [ $real_package ], {
-        ensure   => $ensure,
-        provider => $provider,
-        source   => $real_source,
-      })
+        ensure_resource('package', $real_package, {
+          ensure   => $ensure,
+          provider => $provider,
+          source   => $real_source,
+        })
+      }
     }
 
     $package_depends = "Package[${real_package}]"
+
   } else {
     $package_depends = undef
   }
@@ -177,6 +200,13 @@ define php::extension (
     $full_settings = $settings
   }
 
+  if $config_file_prefix {
+    $real_config_file_name = "${config_file_prefix}${lowercase_title}.ini"
+  }
+  else {
+    $real_config_file_name = "${lowercase_title}.ini"
+  }
+
   $final_settings = deep_merge(
     {"${extension_key}" => "${module_path}${so_name}.so"},
     $full_settings
@@ -184,7 +214,7 @@ define php::extension (
 
   $config_root_ini = pick_default($::php::config_root_ini, $::php::params::config_root_ini)
   ::php::config { $title:
-    file    => "${config_root_ini}/${lowercase_title}.ini",
+    file    => "${config_root_ini}/${real_config_file_name}",
     config  => $final_settings,
     require => $package_depends,
   }

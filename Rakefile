@@ -30,4 +30,19 @@ task test: [
   :metadata_lint,
   :release_checks,
 ]
+
+desc 'Run spec tests of exactly one specfile'
+# usage: bundle exec rake spec_single[<path to specfile>]
+task :spec_single, [:specfile] do |t, args|
+  RSpec::Core::RakeTask.new(:spec_onetest) do |t|
+    t.pattern = args[:specfile]
+    t.rspec_opts = ['--color']
+  end
+
+  Rake::Task[:spec_prep].invoke
+  Rake::Task[:spec_onetest].invoke
+  # Rake::Task[:spec_clean].invoke
+end
+
+
 # vim: syntax=ruby

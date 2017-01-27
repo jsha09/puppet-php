@@ -51,6 +51,7 @@ class php::fpm (
   $service_provider     = $::php::fpm_service_provider,
   $package              = $::php::real_fpm_package,
   $inifile              = $::php::fpm_inifile,
+  $pid_file             = $::php::params::fpm_pid_file,
   $settings             = $::php::real_settings,
   $global_pool_settings = $::php::real_fpm_global_pool_settings,
   $pools                = $::php::real_fpm_pools,
@@ -87,8 +88,10 @@ class php::fpm (
     settings  => $real_settings,
     log_owner => $log_owner,
     log_group => $log_group,
+    pid_file  => $pid_file,
     require   => Package[$real_package],
   }
+
   contain '::php::fpm::config'
   contain '::php::fpm::service'
 

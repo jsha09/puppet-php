@@ -135,6 +135,7 @@ Alternative to the Puppet DSL code examples above, you may optionally define you
 Below are all the examples you see above, but defined in YAML format for use with Hiera.
 
 ```yaml
+
 ---
 php::ensure: latest
 php::manage_repos: true
@@ -192,7 +193,7 @@ The older Ubuntu PPAs run by Ondřej have been deprecated (ondrej/php5, ondrej/p
 in favor of a new PPA: ondrej/php which contains all 3 versions of PHP: 5.5, 5.6, and 7.0
 Here's an example in hiera of getting PHP 5.6 installed with php-fpm, pear/pecl, and composer:
 
-```
+```puppet
 php::globals::php_version: '5.6'
 php::fpm: true
 php::dev: true
@@ -212,6 +213,83 @@ Apache with `mod_php` is not supported by this module. Please use
 We prefer using php-fpm. You can find an example Apache vhost in
 `manifests/apache_vhost.pp` that shows you how to use `mod_proxy_fcgi` to
 connect to php-fpm.
+
+
+### RedHat/CentOS SCL Users
+If you plan to use the SCL repositories with this module you must do the following adjustments:
+
+#### General config
+This ensures that the module will create configurations in the directory ``/etc/opt/rh/<php_version>/` (also in php.d/ 
+for extensions). Anyway you have to manage the SCL repo's by your own.
+ 
+```puppet
+class { '::php::globals':
+  php_version => 'rh-php56',
+  rhscl => true,
+}->
+class { '::php':
+  manage_repos => false
+}
+```
+
+#### Extensions
+Extensions in SCL are being installed with packaged that cover 1 or more .so files. This is kinda incompatible with
+this module, since this module specifies an extension by name and relates the name of the package and the config (.ini)
+from it. To manage extensions with SCL with this module you must use the following parameters:
+
+```puppet
+class { '::php':
+  ...
+  extensions  => {
+    bz2       => { package_name => 'common', config_file_prefix => '20-'},
+    calendar  => { package_name => 'common', config_file_prefix => '20-'},
+  }
+}
+```
+
+By this you tell the module to configure bz2 and calender while ensuring only the package `common`. Further the configs
+will be created with the schema `<config_file_prefix><extension_title>`.
+
+A list of commonly used modules:
+```puppet
+      calendar  => { package_name => 'common', config_file_prefix => '20-'},
+      ctype     => { package_name => 'common', config_file_prefix => '20-'},
+      curl      => { package_name => 'common', config_file_prefix => '20-'},
+      exif      => { package_name => 'common', config_file_prefix => '20-'},
+      fileinfo  => { package_name => 'common', config_file_prefix => '20-'},
+      ftp       => { package_name => 'common', config_file_prefix => '20-'},
+      gettext   => { package_name => 'common', config_file_prefix => '20-'},
+      iconv     => { package_name => 'common', config_file_prefix => '20-'},
+      phar      => { package_name => 'common', config_file_prefix => '20-'},
+      sockets   => { package_name => 'common', config_file_prefix => '20-'},
+      tokenizer => { package_name => 'common', config_file_prefix => '20-'},
+      zip       => { package_name => 'common', config_file_prefix => '20-'},
+      dom       => { package_name => 'xml', config_file_prefix => '20-'},
+      simplexml => { package_name => 'xml', config_file_prefix => '20-'},
+      xmlwriter => { package_name => 'xml', config_file_prefix => '20-'},
+      xsl       => { package_name => 'xml', config_file_prefix => '20-'},
+      wddx      => { package_name => 'xml', config_file_prefix => '30-'},
+      xmlreader => { package_name => 'xml', config_file_prefix => '30-'},
+      soap      => { config_file_prefix => '20-'},
+      pdo       => { package_name => 'pdo', config_file_prefix => '20-'},
+      pdo_sqlite => { package_name => 'pdo', config_file_prefix => '30-'},
+      sqlite3   => { package_name => 'pdo', config_file_prefix => '20-'},
+      imap      => { config_file_prefix => '20-'},
+      posix     => { package_name => 'process', config_file_prefix => '20-'},
+      shmop     => { package_name => 'process', config_file_prefix => '20-'},
+      sysvmsg   => { package_name => 'process', config_file_prefix => '20-'},
+      sysvsem   => { package_name => 'process', config_file_prefix => '20-'},
+      sysvshm   => { package_name => 'process', config_file_prefix => '20-'},
+      intl      => { config_file_prefix => '20-'},
+      gd        => { config_file_prefix => '20-'},
+      mysqlnd   => { package_name => 'mysqlnd', config_file_prefix => '20-'},
+      mysql     => { package_name => 'mysqlnd', config_file_prefix => '30-'},
+      mysqli    => { package_name => 'mysqlnd', config_file_prefix => '30-'},
+      pdo_mysql => { package_name => 'mysqlnd', config_file_prefix => '30-'},
+      mbstring  => { config_file_prefix => '20-'},
+      xmlrpc    => { config_file_prefix => '30-'},
+      json      => { provider => 'pecl', package_name => 'jsonc', config_file_prefix => '40-'},
+```
 
 ### Facts
 
